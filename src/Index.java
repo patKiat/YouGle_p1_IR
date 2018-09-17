@@ -1,7 +1,6 @@
-
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -24,20 +23,21 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+
 public class Index {
 
 	// Term id -> (position in index file, doc frequency) dictionary
-	private static Map<Integer, Pair<Long, Integer>> postingDict 
-		= new TreeMap<Integer, Pair<Long, Integer>>();
+	private static Map<Integer, Pair<Long, Integer>> postingDict
+			= new TreeMap<Integer, Pair<Long, Integer>>();
 	// Doc name -> doc id dictionary
 	private static Map<String, Integer> docDict
-		= new TreeMap<String, Integer>();
+			= new TreeMap<String, Integer>();
 	// Term -> term id dictionary
 	private static Map<String, Integer> termDict
-		= new TreeMap<String, Integer>();
+			= new TreeMap<String, Integer>();
 	// Block queue
 	private static LinkedList<File> blockQueue
-		= new LinkedList<File>();
+			= new LinkedList<File>();
 
 	// Total file counter
 	private static int totalFileCount = 0;
@@ -49,46 +49,49 @@ public class Index {
 	private static BaseIndex index = null;
 
 	private static final int INT_BYTES = Integer.SIZE / Byte.SIZE;
-
-	/* 
-	 * Write a posting list to the given file 
+	/*
+	 * Write a posting list to the given file
 	 * You should record the file position of this posting list
 	 * so that you can read it back during retrieval
-	 * 
+	 *
 	 * */
 	private static void writePosting(FileChannel fc, PostingList posting)
 			throws IOException {
 		/*
 		 * TODO: Your code here
-		 *	 
+		 *
 		 */
 		ByteBuffer buf = ByteBuffer.allocate(INT_BYTES*(posting.getList().size()+2));
 		buf.putInt(posting.getTermId());
 		buf.putInt(posting.getList().size());
+		String docBuf = "";
 		for (int docID : posting.getList()){
 			buf.putInt(docID);
+			docBuf += docID;
 		}
+		System.out.println(posting.getTermId()+","+posting.getList().size()+","+docBuf);
 		buf.flip();
+
 		fc.write(buf);
-		
 	}
-	
 
-	 /**
-     * Pop next element if there is one, otherwise return null
-     * @param iter an iterator that contains integers
-     * @return next element or null
-     */
-    private static Integer popNextOrNull(Iterator<Integer> iter) {
-        if (iter.hasNext()) {
-            return iter.next();
-        } else {
-            return null;
-        }
-    }
 
-   
-	
+	/**
+	 * Pop next element if there is one, otherwise return null
+	 * @param iter an iterator that contains integers
+	 * @return next element or null
+	 */
+	private static Integer popNextOrNull(Iterator<Integer> iter) {
+		if (iter.hasNext()) {
+			return iter.next();
+		} else {
+			return null;
+		}
+	}
+
+
+
+
 	/**
 	 * Main method to start the indexing process.
 	 * @param method		:Indexing method. "Basic" by default, but extra credit will be given for those
@@ -97,7 +100,7 @@ public class Index {
 	 * @param outputDirname	:relative path to the output directory to store index. You must not assume
 	 * 			that this directory exist. If it does, you must clear out the content before indexing.
 	 */
-	public static int runIndexer(String method, String dataDirname, String outputDirname) throws IOException 
+	public static int runIndexer(String method, String dataDirname, String outputDirname) throws IOException
 	{
 		/* Get index */
 		String className = method + "Index";
@@ -109,59 +112,70 @@ public class Index {
 					.println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
 			throw new RuntimeException(e);
 		}
-		
+
 		/* Get root directory */
 		File rootdir = new File(dataDirname);
 		if (!rootdir.exists() || !rootdir.isDirectory()) {
 			System.err.println("Invalid data directory: " + dataDirname);
 			return -1;
 		}
-		
-		   
+
+
 		/* Get output directory*/
 		File outdir = new File(outputDirname);
 		if (outdir.exists() && !outdir.isDirectory()) {
 			System.err.println("Invalid output directory: " + outputDirname);
 			return -1;
 		}
-		
+
 		/*	TODO: delete all the files/sub folder under outdir
-		 * 
+		 *
 		 */
-		
-		
+
+		try {
+			//Deleting the directory recursively.
+			delete(outdir);
+			System.out.println("Directory has been deleted recursively !");
+		} catch (IOException e) {
+			System.out.println("Problem occurs when deleting the directory : " + outputDirname);
+			e.printStackTrace();
+		}
+
+
 		if (!outdir.exists()) {
 			if (!outdir.mkdirs()) {
 				System.err.println("Create output directory failure");
 				return -1;
 			}
 		}
-		
-		
-		
-		
+
+
 		/* BSBI indexing algorithm */
 		File[] dirlist = rootdir.listFiles();
 
 		/* For each block */
 		for (File block : dirlist) {
+//			System.out.println(block.getName());
 			File blockFile = new File(outputDirname, block.getName());
 			//System.out.println("Processing block "+block.getName());
 			blockQueue.add(blockFile);
 
 			File blockDir = new File(dataDirname, block.getName());
 			File[] filelist = blockDir.listFiles();
-			
+
+			//Added: Term PostingList
+			Map<Integer, ArrayList<Integer>> posting = new TreeMap<Integer, ArrayList<Integer>>();
+
 			/* For each file */
 			for (File file : filelist) {
 				++totalFileCount;
 				String fileName = block.getName() + "/" + file.getName();
-				
-				 // use pre-increment to ensure docID > 0
-                int docId = ++docIdCounter;
-                docDict.put(fileName, docId);
-				
-				
+				System.out.println(fileName);
+				// use pre-increment to ensure docID > 0
+				int docId = ++docIdCounter;
+				docDict.put(fileName, docId);
+
+
 				BufferedReader reader = new BufferedReader(new FileReader(file));
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -172,7 +186,28 @@ public class Index {
 						 *       For each term, build up a list of
 						 *       documents in which the term occurs
 						 */
-
+						/*
+						Oat confirmmmmmmmmmmmmmmmm
+						 */
+						if(termDict.containsKey(token) == false){
+							int termId = ++wordIdCounter;
+							termDict.put(token, termId);
+							ArrayList<Integer> tempList = new ArrayList<>();
+							posting.put(termId, tempList);
+							posting.get(termId).add(docId);
+						}else{
+							int tempId = termDict.get(token);
+							if(posting.get(tempId)!=null ){
+								if(!posting.get(tempId).contains(docId)){
+									posting.get(tempId).add(docId);
+								}
+							}
+							else{
+								ArrayList<Integer> tempList = new ArrayList<>();
+								posting.put(tempId, tempList);
+								posting.get(tempId).add(docId);
+							}
+						}
 					}
 				}
 				reader.close();
@@ -183,19 +218,21 @@ public class Index {
 				System.err.println("Create new block failure.");
 				return -1;
 			}
-			
+
 			RandomAccessFile bfc = new RandomAccessFile(blockFile, "rw");
-			
 			/*
 			 * TODO: Your code here
-			 *       Write all posting lists for all terms to file (bfc) 
+			 *       Write all posting lists for all terms to file (bfc)
 			 */
-			
+			System.out.println(posting.keySet().toString());
+			for(int keyId : posting.keySet()){
+				writePosting(bfc.getChannel(), new PostingList(keyId, posting.get(keyId))); // ok, Oat proved that it works
+			}
 			bfc.close();
 		}
 
 		/* Required: output total number of files. */
-		//System.out.println("Total Files Indexed: "+totalFileCount);
+		System.out.println("Total Files Indexed: "+totalFileCount);
 
 		/* Merge blocks */
 		while (true) {
@@ -204,7 +241,7 @@ public class Index {
 
 			File b1 = blockQueue.removeFirst();
 			File b2 = blockQueue.removeFirst();
-			
+
 			File combfile = new File(outputDirname, b1.getName() + "+" + b2.getName());
 			if (!combfile.createNewFile()) {
 				System.err.println("Create new block failure.");
@@ -214,28 +251,32 @@ public class Index {
 			RandomAccessFile bf1 = new RandomAccessFile(b1, "r");
 			RandomAccessFile bf2 = new RandomAccessFile(b2, "r");
 			RandomAccessFile mf = new RandomAccessFile(combfile, "rw");
-			 
+
 			/*
 			 * TODO: Your code here
 			 *       Combine blocks bf1 and bf2 into our combined file, mf
 			 *       You will want to consider in what order to merge
 			 *       the two blocks (based on term ID, perhaps?).
-			 *       
+			 *
 			 */
-			
-			
-			
+			// create an array equal to the length of raf
+
+			mergeFile(bf1, bf2, mf);
+
 			bf1.close();
 			bf2.close();
 			mf.close();
-			b1.delete();
-			b2.delete();
+			//b1.delete();
+			//b2.delete();
 			blockQueue.add(combfile);
 		}
 
 		/* Dump constructed index back into file system */
 		File indexFile = blockQueue.removeFirst();
 		indexFile.renameTo(new File(outputDirname, "corpus.index"));
+
+		// modify postingDict( Map<Integer, Pair<Long, Integer>> postingDict)
+		// by reading corpus.index
 
 		BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(
 				outputDirname, "term.dict")));
@@ -258,10 +299,46 @@ public class Index {
 					+ "\t" + postingDict.get(termId).getSecond() + "\n");
 		}
 		postWriter.close();
-		
+
 		return totalFileCount;
 	}
 
+	private static void mergeFile(RandomAccessFile bf1, RandomAccessFile bf2, RandomAccessFile mf){
+		/*
+		step 1: create file channel from bf1, bf2, mf
+		step 2: read file from bf1 and bf2
+		step 3: read term id and posting list length from bf1 and bf2
+		step 4: if term id 1 = term id 2 then merge posting list
+				else if term id 1 < term id 2
+					put all posting list of term id 1 to merged file then go to next term
+				else
+					put all posting list of term id 2 to merged file then go to next term
+		step 5: if bf1 ended
+					put the rest (ที่เหลือ) of bf2 to mf
+				else
+					put the rest of bf1 to mf
+		 */
+
+
+	}
+
+	private static void delete(File file) throws IOException {
+
+		for (File childFile : file.listFiles()) {
+
+			if (childFile.isDirectory()) {
+				delete(childFile);
+			} else {
+				if (!childFile.delete()) {
+					throw new IOException();
+				}
+			}
+		}
+
+		if (!file.delete()) {
+			throw new IOException();
+		}
+	}
 	public static void main(String[] args) throws IOException {
 		/* Parse command line */
 		if (args.length != 3) {
@@ -282,7 +359,7 @@ public class Index {
 
 		/* Get root directory */
 		String root = args[1];
-		
+
 
 		/* Get output directory */
 		String output = args[2];

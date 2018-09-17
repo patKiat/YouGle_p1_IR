@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,7 +33,9 @@ public class Query {
 	//indicate whether the query service is running or not
 	private boolean running = false;
 	private RandomAccessFile indexFile = null;
-	
+
+	private static final int INT_BYTES = Integer.SIZE / Byte.SIZE;
+
 	/* 
 	 * Read a posting list with a given termID from the file 
 	 * You should seek to the file position of this specific
@@ -43,7 +46,19 @@ public class Query {
 		/*
 		 * TODO: Your code here
 		 */
-		return null;
+		ByteBuffer buf = ByteBuffer.allocate(INT_BYTES*2);
+		if (fc.read(buf) == -1) return null;
+		buf.rewind();
+		PostingList p = new PostingList(buf.getInt());
+		int listLength = buf.getInt();
+		//Read in list
+		buf = ByteBuffer.allocate(INT_BYTES*listLength);
+		if (fc.read(buf) == -1) return null;
+		buf.rewind();
+		for (int i=0; i < listLength; i++){
+			p.getList().add(buf.getInt());
+		}
+		return p;
 	}
 	
 	
