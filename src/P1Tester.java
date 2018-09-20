@@ -57,37 +57,37 @@ public class P1Tester {
 			e.printStackTrace();
 		}
 
-//		long memoryAfter = Runtime.getRuntime().totalMemory()- Runtime.getRuntime().freeMemory();
-//		long endTime = System.currentTimeMillis();
-//		File indexFile = new File(indexDirname, "corpus.index");
-//		long indexSize = indexFile.length();
-//		str.append("\tTotal Files Indexed: "+numFiles+"\n");
-//		str.append("\tMemory Used: "+((memoryAfter - memoryBefore)/1000000.0)+" MBs\n");
-//		str.append("\tTime Used: "+((endTime - startTime)/1000.0)+" secs\n");
-//		str.append("\tIndex Size: "+(indexSize/1048576.0)+" MBs\n");
-//		str.append("\tAlright. Good Bye.\n");
-//		
-//		System.out.println(str.toString());
-//		
-//		//Writing out the stats to a log file
-//		try {
-//			File file = new File(indexDirname, "stats.txt");
-//
-//			// if file does not exist, then create it
-//			if (!file.exists()) {
-//				file.createNewFile();
-//			}
-//			
-//			FileWriter fw = new FileWriter(file.getAbsoluteFile());
-//			BufferedWriter bw = new BufferedWriter(fw);
-//		
-//			bw.write(str.toString());
-//			bw.close();
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
-//		
+		long memoryAfter = Runtime.getRuntime().totalMemory()- Runtime.getRuntime().freeMemory();
+		long endTime = System.currentTimeMillis();
+		File indexFile = new File(indexDirname, "corpus.index");
+		long indexSize = indexFile.length();
+		str.append("\tTotal Files Indexed: "+numFiles+"\n");
+		str.append("\tMemory Used: "+((memoryAfter - memoryBefore)/1000000.0)+" MBs\n");
+		str.append("\tTime Used: "+((endTime - startTime)/1000.0)+" secs\n");
+		str.append("\tIndex Size: "+(indexSize/1048576.0)+" MBs\n");
+		str.append("\tAlright. Good Bye.\n");
+
+		System.out.println(str.toString());
+
+		//Writing out the stats to a log file
+		try {
+			File file = new File(indexDirname, "stats.txt");
+
+			// if file does not exist, then create it
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file.getAbsoluteFile());
+			BufferedWriter bw = new BufferedWriter(fw);
+
+			bw.write(str.toString());
+			bw.close();
+		} catch (IOException e) {
+
+			e.printStackTrace();
+		}
+
 
 	}
 
@@ -115,10 +115,12 @@ public class P1Tester {
 			List<Integer> hitDocs = null;
 			try {
 				hitDocs = queryService.retrieve(queries[i]);
+				//-------------------
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			String output = queryService.outputQueryResult(hitDocs);
+//			System.out.println(output);
 			try {
 				File file = new File(outputDir, (i+1)+".out");
 
@@ -171,15 +173,15 @@ public class P1Tester {
 	public static void main(String [] args)
 	{
 		//Test the "small" dataset
-		testIndex("Basic", "./datasets/small", "./index/small");
+//		testIndex("Basic", "./datasets/small", "./index/small");
 //		testQuery("Basic", "./index/small", queriesSmall, "./output/small");
-
+//
 		//Test the "large" dataset
-		//testIndex("Basic", "./datasets/large", "./index/large");
-		//testQuery("Basic", "./index/large", queriesLarge, "./output/large");
+//		testIndex("Basic", "./datasets/large", "./index/large");
+//		testQuery("Basic", "./index/large", queriesLarge, "./output/large");
 
 		//Test the "citeseer" dataset
-		//testIndex("Basic", "./datasets/citeseer", "./index/citeseer");
-		//testQuery("Basic", "./index/citeseer", queriesCiteseer, "./output/citeseer");
+		testIndex("Basic", "./datasets/citeseer", "./index/citeseer");
+		testQuery("Basic", "./index/citeseer", queriesCiteseer, "./output/citeseer");
 	}
 }

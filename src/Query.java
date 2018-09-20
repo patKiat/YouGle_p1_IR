@@ -1,20 +1,29 @@
-
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import javax.print.attribute.Size2DSyntax;
+
+/**
+ * Waralee Tanaphantaruk		ID 5988044
+ * Pattararat Kiattipadungkul	ID 5988068
+ * Thanakorn Torcheewee			ID 5988148
+ * Section 1
+ */
 
 public class Query {
 
@@ -28,16 +37,14 @@ public class Query {
 	private  Map<String, Integer> termDict = new TreeMap<String, Integer>();
 	// Index
 	private  BaseIndex index = null;
-	
+
 
 	//indicate whether the query service is running or not
 	private boolean running = false;
 	private RandomAccessFile indexFile = null;
 
-	private static final int INT_BYTES = Integer.SIZE / Byte.SIZE;
-
-	/* 
-	 * Read a posting list with a given termID from the file 
+	/*
+	 * Read a posting list with a given termID from the file
 	 * You should seek to the file position of this specific
 	 * posting list and read it back.
 	 * */
@@ -46,22 +53,32 @@ public class Query {
 		/*
 		 * TODO: Your code here
 		 */
-		ByteBuffer buf = ByteBuffer.allocate(INT_BYTES*2);
-		if (fc.read(buf) == -1) return null;
-		buf.rewind();
-		PostingList p = new PostingList(buf.getInt());
-		int listLength = buf.getInt();
-		//Read in list
-		buf = ByteBuffer.allocate(INT_BYTES*listLength);
-		if (fc.read(buf) == -1) return null;
-		buf.rewind();
-		for (int i=0; i < listLength; i++){
-			p.getList().add(buf.getInt());
+		//Given that fc is an corpus.index
+		Long pos = posDict.get(termId);
+		int posInt = (int)(pos/4);
+		int freq = freqDict.get(termId);
+		posInt += 2; //Skip doc freq and termId
+		IntBuffer ib = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size()).asIntBuffer();
+		ArrayList<Integer> docID = new ArrayList<>();
+		try
+		{
+			ib.get(posInt);
+			for(int i = posInt; i < (posInt + freq); i++)
+			{
+				docID.add(ib.get(i));
+			}
+
 		}
-		return p;
+		catch(Exception e)
+		{
+			System.out.println("reading done\n");
+		}
+		PostingList result = new PostingList(termId, docID);
+
+		return result;
 	}
-	
-	
+
+
 	public void runQueryService(String indexMode, String indexDirname) throws IOException
 	{
 		//Get the index reader
@@ -73,14 +90,14 @@ public class Query {
 					.println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
 			throw new RuntimeException(e);
 		}
-		
+
 		//Get Index file
 		File inputdir = new File(indexDirname);
 		if (!inputdir.exists() || !inputdir.isDirectory()) {
 			System.err.println("Invalid index directory: " + indexDirname);
 			return;
 		}
-		
+
 		/* Index file */
 		indexFile = new RandomAccessFile(new File(indexDirname,
 				"corpus.index"), "r");
@@ -114,32 +131,80 @@ public class Query {
 					Integer.parseInt(tokens[2]));
 		}
 		postReader.close();
-		
+
 		this.running = true;
 	}
-    
-	public List<Integer> retrieve(String query) throws IOException
-	{	if(!running) 
-		{
-			System.err.println("Error: Query service must be initiated");
+	/**
+	 * This method is for combining two lists of DocID with intersection method
+	 * @param list1
+	 * @param list2
+	 * @return List of intersect docID
+	 */
+	public List<Integer> intersection(List<Integer> list1, List<Integer> list2){
+		ArrayList<Integer> list = new ArrayList<Integer>();
+
+		for (int t : list1) {
+			if(list2.contains(t)) {
+				list.add(t);
+			}
 		}
-		
+		return list;
+	}
+
+	public List<Integer> retrieve(String query) throws IOException
+	{	if(!running)
+	{
+		System.err.println("Error: Query service must be initiated");
+	}
+
 		/*
 		 * TODO: Your code here
 		 *       Perform query processing with the inverted index.
 		 *       return the list of IDs of the documents that match the query
-		 *      
+		 *
 		 */
-		return null;
-		
+
+		String [] querySet = query.split(" ");
+		ArrayList <PostingList> result = new ArrayList<>();
+
+
+		for(String q : querySet){
+			if(termDict.get(q) != null){
+				readPosting(indexFile.getChannel(), termDict.get(q)).getList();
+				result.add(readPosting(indexFile.getChannel(), termDict.get(q)));
+			}
+			else{
+//				System.out.println("Not found");
+			}
+		}
+
+		//Intersection
+		if(result.size() == 1){ //One term
+			return result.get(0).getList();
+		}
+		else if(result.size()>1){
+
+			List <Integer> temp = result.get(0).getList();
+			int term = 1;
+			while(term<result.size()){
+				temp = intersection(temp, result.get(term).getList());
+				term++;
+			}
+			return temp;
+		}
+		else{//Null
+			return null;
+		}
+
 	}
-	
-    String outputQueryResult(List<Integer> res) {
+
+
+	String outputQueryResult(List<Integer> res) {
         /*
-         * TODO: 
-         * 
-         * Take the list of documents ID and prepare the search results, sorted by lexicon order. 
-         * 
+         * TODO:
+         *
+         * Take the list of documents ID and prepare the search results, sorted by lexicon order.
+         *
          * E.g.
          * 	0/fine.txt
 		 *	0/hello.txt
@@ -148,14 +213,33 @@ public class Query {
 		 *	2/hello.txt
 		 *
 		 * If there no matched document, output:
-		 * 
+		 *
 		 * no results found
-		 * 
+		 *
          * */
-    	
-    	return null;
-    }
-	
+		String temp = "";
+		Map<Integer, String> unsortMap = new HashMap<>();
+
+		if(res != null){
+			for(int i : res){
+				unsortMap.put(i, docDict.get(i));
+
+
+			}
+			Map<Integer, String> result2 = new LinkedHashMap<>();
+			//Sort by lexicon order
+			unsortMap.entrySet().stream().sorted(Map.Entry.<Integer, String>comparingByValue())
+					.forEachOrdered(x -> result2.put(x.getKey(), x.getValue()));
+			for(String i: result2.values()){
+				temp += i+"\n";
+			}
+		}
+		else{
+			temp = "no results found";
+		}
+		return temp;
+	}
+
 	public static void main(String[] args) throws IOException {
 		/* Parse command line */
 		if (args.length != 2) {
@@ -175,10 +259,10 @@ public class Query {
 
 		/* Get index directory */
 		String input = args[1];
-		
+
 		Query queryService = new Query();
 		queryService.runQueryService(className, input);
-		
+
 		/* Processing queries */
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
@@ -188,10 +272,10 @@ public class Query {
 			List<Integer> hitDocs = queryService.retrieve(line);
 			queryService.outputQueryResult(hitDocs);
 		}
-		
+
 		br.close();
 	}
-	
+
 	protected void finalize()
 	{
 		try {
@@ -201,4 +285,3 @@ public class Query {
 		}
 	}
 }
-

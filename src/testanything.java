@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.IntBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
@@ -61,27 +62,27 @@ public class testanything
         int len;
         FileChannel fc = raf.getChannel();
         IntBuffer ib = fc.map(FileChannel.MapMode.READ_WRITE, 0, fc.size()).asIntBuffer();
-
+        System.out.println("Size: "+fc.size());
         try
         {
             while(true)
             {
                 //System.out.println("byte " + countbyte + ": " + ib.get(i));
                 //countbyte+=4;
-               // System.out.println(ib.get(i));
-               // i++;
-				int termid = ib.get(i);
-				i++;
-				int docfreq = ib.get(i);
-				i++;
-				System.out.println("term id = " + termid + " doclen = " + docfreq);
-				System.out.print("posting list: ");
-				for(len = i; len < i+docfreq; len++)
-				{
-					System.out.print(ib.get(len) + " ");
-				}
-				System.out.println("\n");
-				i+=docfreq;
+                // System.out.println(ib.get(i));
+                // i++;
+                int termid = ib.get(i);
+                i++;
+                int docfreq = ib.get(i);
+                i++;
+                System.out.println("term id = " + termid + " doclen = " + docfreq);
+                System.out.print("posting list: ");
+                for(len = i; len < i+docfreq; len++)
+                {
+                    System.out.print(ib.get(len) + " ");
+                }
+                System.out.println("\n");
+                i+=docfreq;
             }
         }
         catch(Exception e)
@@ -98,8 +99,9 @@ public class testanything
         //writeToFileChannel();
         //writeToFileChannel();
         //readFileChannel("./index/small - Copy/corpus.index");
-        readFileChannel("./index/small/0");
+//        readFileChannel("./index/small/corpus.index");
         //readFileChannel("./index/small/1");
+        readFileChannel("./output/small/2.out");
     }
 
 }
